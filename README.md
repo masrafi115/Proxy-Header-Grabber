@@ -10,6 +10,7 @@ TODO:
 - allow specifying response header values to grab
 - use in other tools (not just Repeater)
 - add toggle for in-scope only
+- add extension activated/deactivated master toggle
 
 # Install
 
