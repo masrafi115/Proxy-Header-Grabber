@@ -9,6 +9,7 @@ import burp.api.montoya.proxy.http.ProxyRequestHandler;
 import burp.api.montoya.proxy.http.ProxyRequestReceivedAction;
 import burp.api.montoya.proxy.http.ProxyRequestToBeSentAction;
 import burp.api.montoya.ui.Selection;
+import burp.api.montoya.ui.editor.EditorOptions;
 import burp.api.montoya.ui.editor.extension.EditorCreationContext;
 import burp.api.montoya.ui.editor.extension.ExtensionProvidedHttpRequestEditor;
 import burp.api.montoya.ui.editor.extension.HttpRequestEditorProvider;
@@ -303,7 +304,7 @@ public class Extension implements BurpExtension {
         public AutoModifiedEditor(MontoyaApi api, EditorCreationContext creationContext) {
             this.api = api;
             this.creationContext = creationContext;
-            this.requestEditor = api.userInterface().createHttpRequestEditor();
+            this.requestEditor = api.userInterface().createHttpRequestEditor(EditorOptions.READ_ONLY);
         }
         
         @Override
