@@ -31,6 +31,9 @@ public class Extension implements BurpExtension {
     private JTextArea headersTextArea;
     private JTextArea capturedHeadersDisplay;
     
+    // Toggle for enabling/disabling header modification
+    private JCheckBox enableModificationCheckbox;
+    
     @Override
     public void initialize(MontoyaApi montoyaApi) {
         montoyaApi.extension().setName("Proxy Header Grabber");
@@ -96,6 +99,11 @@ public class Extension implements BurpExtension {
         montoyaApi.http().registerHttpHandler(new HttpHandler() {
             @Override
             public RequestToBeSentAction handleHttpRequestToBeSent(HttpRequestToBeSent requestToBeSent) {
+                // Check if header modification is enabled - if not, pass through unmodified
+                if (enableModificationCheckbox == null || !enableModificationCheckbox.isSelected()) {
+                    return RequestToBeSentAction.continueWith(requestToBeSent);
+                }
+                
                 // Only process requests from Repeater tool
                 if (requestToBeSent.toolSource().isFromTool(ToolType.REPEATER)) {
                     // Check if the URL is in scope
@@ -148,10 +156,26 @@ public class Extension implements BurpExtension {
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
         
-        // Title
+        // Top panel with title and enable checkbox
+        JPanel topPanel = new JPanel();
+        topPanel.setLayout(new BoxLayout(topPanel, BoxLayout.Y_AXIS));
+        
         JLabel titleLabel = new JLabel("Configuration");
         titleLabel.setFont(new Font(titleLabel.getFont().getName(), Font.BOLD, 16));
-        mainPanel.add(titleLabel, BorderLayout.NORTH);
+        titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        topPanel.add(titleLabel);
+        
+        topPanel.add(Box.createVerticalStrut(10)); // Add spacing
+        
+        // Enable/disable checkbox
+        enableModificationCheckbox = new JCheckBox("Replace headers in Repeater", true);
+        enableModificationCheckbox.setFont(new Font(enableModificationCheckbox.getFont().getName(), Font.BOLD, 14));
+        enableModificationCheckbox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        topPanel.add(enableModificationCheckbox);
+        
+        topPanel.add(Box.createVerticalStrut(10)); // Add spacing after checkbox
+        
+        mainPanel.add(topPanel, BorderLayout.NORTH);
         
         // Center panel with configuration
         JPanel centerPanel = new JPanel(new GridBagLayout());
