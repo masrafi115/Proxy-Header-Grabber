@@ -35,6 +35,9 @@ public class Extension implements BurpExtension {
     // Toggle for enabling/disabling header modification
     private JCheckBox enableModificationCheckbox;
     
+    // Toggle for restricting replacement to Burp's in-scope URLs only
+    private JCheckBox scopeOnlyCheckbox;
+    
     @Override
     public void initialize(MontoyaApi montoyaApi) {
         montoyaApi.extension().setName("Proxy Header Grabber");
@@ -107,15 +110,17 @@ public class Extension implements BurpExtension {
                 
                 // Only process requests from Repeater tool
                 if (requestToBeSent.toolSource().isFromTool(ToolType.REPEATER)) {
-                    // Check if the URL is in scope
-                    if (!montoyaApi.scope().isInScope(requestToBeSent.url())) {
-                        return RequestToBeSentAction.continueWith(requestToBeSent);
+                    // Optionally restrict to Burp's in-scope URLs
+                    if (scopeOnlyCheckbox != null && scopeOnlyCheckbox.isSelected()) {
+                        if (!montoyaApi.scope().isInScope(requestToBeSent.url())) {
+                            return RequestToBeSentAction.continueWith(requestToBeSent);
+                        }
                     }
                     
                     // If we have captured headers, replace them
                     if (!capturedHeaders.isEmpty()) {
                         HttpRequest modifiedRequest = requestToBeSent;
-                        StringBuilder logMessage = new StringBuilder("[Repeater] Replaced headers for in-scope URL: " + requestToBeSent.url() + "\n");
+                        StringBuilder logMessage = new StringBuilder("[Repeater] Replaced headers for URL: " + requestToBeSent.url() + "\n");
                         
                         for (Map.Entry<String, String> header : capturedHeaders.entrySet()) {
                             modifiedRequest = modifiedRequest.withUpdatedHeader(header.getKey(), header.getValue());
@@ -148,7 +153,7 @@ public class Extension implements BurpExtension {
         montoyaApi.logging().logToOutput("Proxy Header Grabber initialized.");
         montoyaApi.logging().logToOutput("Custom tab registered - configure URLs and headers in the 'Proxy Header Grabber' tab.");
         montoyaApi.logging().logToOutput("HTTP handler registered - will modify requests sent from Repeater.");
-        montoyaApi.logging().logToOutput("Custom 'Auto-modified' editor tab registered for Repeater.");
+        montoyaApi.logging().logToOutput("Custom 'PHG Auto-modified' editor tab registered for Repeater.");
         montoyaApi.logging().logToOutput("The tab shows what will be sent with updated headers for IN-SCOPE URLs.");
     }
     
@@ -174,7 +179,14 @@ public class Extension implements BurpExtension {
         enableModificationCheckbox.setAlignmentX(Component.LEFT_ALIGNMENT);
         topPanel.add(enableModificationCheckbox);
         
-        topPanel.add(Box.createVerticalStrut(10)); // Add spacing after checkbox
+        topPanel.add(Box.createVerticalStrut(5));
+        
+        // Scope restriction checkbox
+        scopeOnlyCheckbox = new JCheckBox("Apply only to in-scope URLs (Burp Target Scope)", false);
+        scopeOnlyCheckbox.setAlignmentX(Component.LEFT_ALIGNMENT);
+        topPanel.add(scopeOnlyCheckbox);
+        
+        topPanel.add(Box.createVerticalStrut(10)); // Add spacing after checkboxes
         
         mainPanel.add(topPanel, BorderLayout.NORTH);
         
@@ -316,33 +328,36 @@ public class Extension implements BurpExtension {
         public void setRequestResponse(HttpRequestResponse requestResponse) {
             this.requestResponse = requestResponse;
             
-            // Get the original request
             HttpRequest originalRequest = requestResponse.request();
             
-            // If we have captured headers and the URL is in scope, update them
-            if (!capturedHeaders.isEmpty() && api.scope().isInScope(originalRequest.url())) {
+            boolean scopeRestricted = scopeOnlyCheckbox != null && scopeOnlyCheckbox.isSelected();
+            boolean inScope = !scopeRestricted || api.scope().isInScope(originalRequest.url());
+            
+            if (!capturedHeaders.isEmpty() && inScope) {
                 HttpRequest modifiedRequest = originalRequest;
                 for (Map.Entry<String, String> header : capturedHeaders.entrySet()) {
                     modifiedRequest = modifiedRequest.withUpdatedHeader(header.getKey(), header.getValue());
                 }
                 requestEditor.setRequest(modifiedRequest);
             } else {
-                // Show original request
                 requestEditor.setRequest(originalRequest);
             }
         }
         
         @Override
         public boolean isEnabledFor(HttpRequestResponse requestResponse) {
-            // Only show this tab for Repeater, when we have captured headers, and URL is in scope
-            return creationContext.toolSource().isFromTool(ToolType.REPEATER) && 
-                   !capturedHeaders.isEmpty() &&
-                   api.scope().isInScope(requestResponse.request().url());
+            if (!creationContext.toolSource().isFromTool(ToolType.REPEATER)) {
+                return false;
+            }
+            if (scopeOnlyCheckbox != null && scopeOnlyCheckbox.isSelected()) {
+                return api.scope().isInScope(requestResponse.request().url());
+            }
+            return true;
         }
         
         @Override
         public String caption() {
-            return "Auto-modified";
+            return "PHG Auto-modified";
         }
         
         @Override
