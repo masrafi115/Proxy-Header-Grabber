@@ -38,7 +38,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build fat JAR
-        run: ./gradlew --no-daemon fatJar
+        run: ./gradlew --no-daemon jar
 
       - name: Upload fat JAR
         uses: actions/upload-artifact@v4
