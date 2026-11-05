@@ -1,0 +1,48 @@
+name: Burp Extension
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+    inputs:
+      run-fatjar:
+        description: "Build the BApp fat JAR (requires local PortSwigger dependency JARs uploaded as a workflow secret/artifact)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  fatjar:
+    name: Build BApp fat JAR
+    runs-on: ubuntu-latest
+    # Only attempt the packaging step when the dispatcher explicitly opts in,
+    # because building requires the PortSwigger bulkScan-all.jar and
+    # turbo-intruder.jar artifacts which are not redistributable through this
+    # repository. Forks contributing changes can iterate on `test` alone.
+    # if: ${{ github.event_name == 'workflow_dispatch' && inputs.run-fatjar }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build fat JAR
+        run: ./gradlew --no-daemon fatJar
+
+      - name: Upload fat JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: downloadfile
+          path: build/libs/*.jar
+          if-no-files-found: error
